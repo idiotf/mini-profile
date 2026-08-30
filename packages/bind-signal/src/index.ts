@@ -32,18 +32,11 @@ export function withSignal<T, TPromise extends PromiseLike<T>>(
 }
 
 interface SignalBinding extends Disposable {
-  <T>(
-    promise: PromiseLike<T>,
-    onDispose?: (value: T) => void,
-  ): Promise<T>
-
-  <T>(
-    value: T,
-    onDispose?: (value: T) => void,
-  ): T
+  <T>(promise: PromiseLike<T>, onDispose?: (value: T) => void): Promise<T>
+  <T>(value: T, onDispose?: (value: T) => void): T
 
   get disposed(): boolean
-  sub(): SignalBinding
+  sub(ignoreRejectionAfterDisposed?: boolean): SignalBinding
   dispose(): void
 }
 
@@ -57,14 +50,14 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 
 const alreadyDisposedError = ReferenceError('bindSignal: already disposed')
 
-export function bindSignal(signal: AbortSignal | undefined): SignalBinding {
+export function bindSignal(
+  signal: AbortSignal | undefined,
+  ignoreRejectionAfterDisposed?: boolean,
+): SignalBinding {
   const stack = new DisposableStack()
 
   return Object.assign(
-    <T>(
-      value: T | PromiseLike<T>,
-      onDispose?: (value: T) => void,
-    ) => {
+    <T>(value: T | PromiseLike<T>, onDispose?: (value: T) => void) => {
       function dispose(value: T) {
         if (onDispose) {
           onDispose(value)
@@ -116,18 +109,17 @@ export function bindSignal(signal: AbortSignal | undefined): SignalBinding {
           }
         }
 
-        const raceSignal = signal && AbortSignal.any([
-          signal,
-          stack.adopt(
-            new AbortController(),
-            (controller) => controller.abort(alreadyDisposedError),
-          ).signal,
-        ])
+        const raceSignal =
+          signal &&
+          AbortSignal.any([
+            signal,
+            stack.adopt(new AbortController(), (controller) =>
+              controller.abort(alreadyDisposedError),
+            ).signal,
+          ])
 
-        return withSignal(
-          value,
-          raceSignal,
-          () => value.then(dispose),
+        return withSignal(value, raceSignal, () =>
+          value.then(dispose, ignoreRejectionAfterDisposed ? noop : undefined),
         ).then(handleSyncValue)
       } else {
         return handleSyncValue(value)
@@ -138,8 +130,8 @@ export function bindSignal(signal: AbortSignal | undefined): SignalBinding {
         return !!(stack.disposed || signal?.aborted)
       },
 
-      sub() {
-        return stack.use(bindSignal(signal))
+      sub(ignoreRejectionAfterDisposed?: boolean) {
+        return stack.use(bindSignal(signal, ignoreRejectionAfterDisposed))
       },
 
       dispose() {
@@ -152,3 +144,5 @@ export function bindSignal(signal: AbortSignal | undefined): SignalBinding {
     },
   )
 }
+
+function noop() {}

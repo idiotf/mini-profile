@@ -32,29 +32,33 @@ async function compressVideoOrImageToAvif(
   blob: Blob,
   options: CompressionOptions = {},
 ) {
-  using __ = bindSignal(options.signal)
+  using __ = bindSignal(options.signal, true)
 
+  let creatingConversion = false
   const output = __(
     new Output({
       format: new AvifOutputFormat(),
       target: new BufferTarget(),
     }),
-    (output) => output.cancel(),
+    (output) => {
+      if (output.state == 'finalized' || creatingConversion) return
+      output.cancel()
+    },
   )
 
   const imgMimeType = await __(readImageMimeType(new BlobSource(blob)))
 
-  await __(
-    imgMimeType === null ? compressVideo() : compressImage(imgMimeType),
-  )
+  await __(imgMimeType === null ? compressVideo() : compressImage(imgMimeType))
 
   return new Uint8Array(output.target.buffer!)
 
   async function compressVideo() {
-    using input = new Input({
-      source: new BlobSource(blob),
-      formats: [MP4, QTFF, MATROSKA, WEBM, MPEG_TS],
-    })
+    const input = __(
+      new Input({
+        source: new BlobSource(blob),
+        formats: [MP4, QTFF, MATROSKA, WEBM, MPEG_TS],
+      }),
+    )
 
     const conversionOptions = {
       input,
@@ -69,8 +73,10 @@ async function compressVideoOrImageToAvif(
       },
     } as const
 
+    creatingConversion = true
     const conversion = await __(
       Conversion.init(conversionOptions).catch((reason) => {
+        output.cancel()
         if (reason instanceof UnsupportedInputFormatError) {
           throw '지원되지 않는 파일 형식입니다.'
         }
@@ -86,7 +92,7 @@ async function compressVideoOrImageToAvif(
 
     conversion.onProgress = options.onProgress
 
-    await __(conversion.execute({ pauseSignal: options.signal }))
+    await __(conversion.execute())
   }
 
   async function compressImage(type: string) {
@@ -119,13 +125,15 @@ async function compressVideoOrImageToAvif(
     await __(decoder.completed)
 
     for (let frameIndex = 0; frameIndex < track.frameCount; ++frameIndex) {
-      using __sub = __.sub()
+      using __sub = __.sub(true)
 
       const sample = await __sub(
-        decoder.decode({
-          frameIndex,
-          completeFramesOnly: true,
-        }).then(({ image }) => new VideoSample(image)),
+        decoder
+          .decode({
+            frameIndex,
+            completeFramesOnly: true,
+          })
+          .then(({ image }) => new VideoSample(image)),
         (sample) => sample.close(),
       )
 
@@ -135,7 +143,7 @@ async function compressVideoOrImageToAvif(
       options.onProgress?.(progress, sample.timestamp)
     }
 
-    await output.finalize()
+    await __(output.finalize())
   }
 }
 
