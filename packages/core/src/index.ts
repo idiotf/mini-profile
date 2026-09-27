@@ -102,17 +102,41 @@ async function compressVideoOrImageToAvif(
   }
 
   async function compressImage(type: string) {
-    const decoder = __(
-      new ImageDecoder({
-        type,
-        data: blob.stream(),
-        desiredWidth: options.width,
-        desiredHeight: options.height,
-        preferAnimation: true,
-      }),
-      (decoder) => decoder.close(),
-    )
-    await __(decoder.tracks.ready)
+    async function getImageDecoder() {
+      // 1. Try to init the decoder with desiredWidth/desiredHeight
+      // 2. If throws, retry without desiredWidth/desiredHeight
+      // (See https://issues.chromium.org/issues/562384494)
+
+      try {
+        const decoder = __(
+          new ImageDecoder({
+            type,
+            data: blob.stream(),
+            desiredWidth: options.width,
+            desiredHeight: options.height,
+            preferAnimation: true,
+          }),
+          (decoder) => decoder.close(),
+        )
+        await __(decoder.tracks.ready)
+        return decoder
+      } catch (e) {
+        console.warn(e)
+
+        const decoder = __(
+          new ImageDecoder({
+            type,
+            data: blob.stream(),
+            preferAnimation: true,
+          }),
+          (decoder) => decoder.close(),
+        )
+        await __(decoder.tracks.ready)
+        return decoder
+      }
+    }
+
+    const decoder = await getImageDecoder()
 
     const track = decoder.tracks.selectedTrack
     if (!track) throw TypeError('Cannot find primary animated image track')
