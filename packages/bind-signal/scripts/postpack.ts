@@ -8,7 +8,7 @@ if (typeof packageJson.exports == 'string') {
 } else {
   const exports = packageJson.exports
   for (const exportName in exports) {
-    const name = exportName == '.' ? './index' : exportName
+    const name = exportName === '.' ? './index' : exportName
     exports[exportName].import = `./${path.join('src', name)}.ts`
     exports[exportName].types = `./${path.join('src', name)}.ts`
   }

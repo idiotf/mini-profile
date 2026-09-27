@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
 import { useBlobUrl } from '@/hooks/use-blob-url'
 import { useFileListStore } from '@/app/providers'
@@ -24,6 +24,7 @@ import {
   AttachmentTitle,
 } from '../ui/attachment'
 import { downloadBlob } from '@/utils/common/download'
+import { preventDefault } from '@/utils/common/prevent-default'
 
 type ImgVideoIntersectProps = Omit<React.ComponentProps<'img'>, 'src'> &
   Omit<React.ComponentProps<'video'>, 'src'>
@@ -36,11 +37,11 @@ interface FilePreviewProps extends ImgVideoIntersectProps {
 function FilePreview({ type, file, ...props }: FilePreviewProps) {
   const blobUrl = useBlobUrl(file)
 
-  if (type == 'image') {
+  if (type === 'image') {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img {...props} src={blobUrl} alt='' />
+    return <img alt='' {...props} src={blobUrl} />
   } else {
-    return <video {...props} src={blobUrl} />
+    return <video onContextMenu={preventDefault} {...props} src={blobUrl} />
   }
 }
 
@@ -50,7 +51,7 @@ interface ImagePreviewProps {
 
 function AttachmentFileMedia({ file }: ImagePreviewProps) {
   const type = file.type.split('/')[0]
-  const isValid = type == 'image' || type == 'video'
+  const isValid = type === 'image' || type === 'video'
 
   return isValid ? (
     <AttachmentMedia variant='image'>
@@ -68,11 +69,11 @@ function AttachmentFileMedia({ file }: ImagePreviewProps) {
 }
 
 function getExtOf(name: string) {
-  return name.replace(/^.+\.|^[^.]*$/, '')
+  return name.replace(/^.*\.|^[^.]*$/, '')
 }
 
 function formatExt(ext: string) {
-  return ext == 'webp' ? 'WebP' : ext == 'webm' ? 'WebM' : ext.toUpperCase()
+  return ext === 'webp' ? 'WebP' : ext === 'webm' ? 'WebM' : ext.toUpperCase()
 }
 
 const kib = 1024
@@ -117,21 +118,21 @@ const FileItemUI = observer(({ i }: FileItemUIProps) => {
       <AttachmentContent>
         <AttachmentTitle>{item.file.name}</AttachmentTitle>
         <AttachmentDescription>
-          {item.state == 'idle' ? (
+          {item.state === 'idle' ? (
             <>
               {ext}
               {ext && ' · '}
               {size}
             </>
-          ) : item.state == 'uploading' ? (
+          ) : item.state === 'uploading' ? (
             <>준비 중... ({(item.progress * 100).toFixed(1)}%)</>
-          ) : item.state == 'processing' ? (
+          ) : item.state === 'processing' ? (
             <>압축 중... ({(item.progress * 100).toFixed(1)}%)</>
-          ) : item.state == 'done' ? (
+          ) : item.state === 'done' ? (
             <>압축 완료됨</>
           ) : (
             <>
-              {typeof item.error == 'string'
+              {typeof item.error === 'string'
                 ? item.error
                 : '오류가 발생했습니다.'}
             </>
@@ -139,7 +140,7 @@ const FileItemUI = observer(({ i }: FileItemUIProps) => {
         </AttachmentDescription>
       </AttachmentContent>
       <AttachmentActions>
-        {(item.state == 'idle' || item.state == 'error') && (
+        {(item.state === 'idle' || item.state === 'error') && (
           <>
             <Popover>
               <PopoverTrigger
@@ -157,7 +158,7 @@ const FileItemUI = observer(({ i }: FileItemUIProps) => {
               aria-label='압축 시작하기'
               onClick={startCompression}
             >
-              {item.state == 'idle' ? <CheckIcon /> : <RefreshCwIcon />}
+              {item.state === 'idle' ? <CheckIcon /> : <RefreshCwIcon />}
             </AttachmentAction>
           </>
         )}
@@ -176,11 +177,28 @@ export const CompressorUI = observer(
     const fileListStore = useFileListStore()
 
     const handleFileSelect = useCallback(
-      (list: FileList) => {
+      (list: Iterable<File>) => {
         fileListStore.add(...list)
       },
       [fileListStore],
     )
+
+    useEffect(() => {
+      function onDrop(event: DragEvent) {
+        event.preventDefault()
+
+        const files = event.dataTransfer?.files
+        if (files) handleFileSelect(files)
+      }
+
+      addEventListener('dragover', preventDefault)
+      addEventListener('drop', onDrop)
+
+      return () => {
+        removeEventListener('dragover', preventDefault)
+        removeEventListener('drop', onDrop)
+      }
+    }, [handleFileSelect])
 
     return (
       <div {...props} className={cn('space-y-2', className)}>

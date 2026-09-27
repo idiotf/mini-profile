@@ -14,6 +14,7 @@ import {
   UnsupportedInputFormatError,
   VideoSampleSource,
   VideoSample,
+  type ConversionOptions,
 } from 'mediabunny'
 import { AvifOutputFormat } from '@mini-profile/avif-muxer-mediabunny'
 import { readImageMimeType } from './image-mime'
@@ -34,33 +35,35 @@ async function compressVideoOrImageToAvif(
 ) {
   using __ = bindSignal(options.signal, true)
 
-  let creatingConversion = false
-  const output = __(
-    new Output({
-      format: new AvifOutputFormat(),
-      target: new BufferTarget(),
-    }),
-    (output) => {
-      if (output.state == 'finalized' || creatingConversion) return
-      output.cancel()
-    },
+  const source = new BlobSource(blob)
+  const imgMimeType = await __(readImageMimeType(source))
+
+  return new Uint8Array(
+    await __(
+      imgMimeType === null ? compressVideo() : compressImage(imgMimeType),
+    ),
   )
 
-  const imgMimeType = await __(readImageMimeType(new BlobSource(blob)))
-
-  await __(imgMimeType === null ? compressVideo() : compressImage(imgMimeType))
-
-  return new Uint8Array(output.target.buffer!)
-
   async function compressVideo() {
+    const output = __(
+      new Output({
+        format: new AvifOutputFormat({ useSingleImage: false }),
+        target: new BufferTarget(),
+      }),
+      (output) => {
+        if (output.state === 'finalized') return
+        output.cancel()
+      },
+    )
+
     const input = __(
       new Input({
-        source: new BlobSource(blob),
+        source,
         formats: [MP4, QTFF, MATROSKA, WEBM, MPEG_TS],
       }),
     )
 
-    const conversionOptions = {
+    const conversionOptions: ConversionOptions = {
       input,
       output,
       video: {
@@ -71,12 +74,11 @@ async function compressVideoOrImageToAvif(
       audio: {
         discard: true,
       },
-    } as const
+      composable: true,
+    }
 
-    creatingConversion = true
     const conversion = await __(
       Conversion.init(conversionOptions).catch((reason) => {
-        output.cancel()
         if (reason instanceof UnsupportedInputFormatError) {
           throw '지원되지 않는 파일 형식입니다.'
         }
@@ -92,7 +94,11 @@ async function compressVideoOrImageToAvif(
 
     conversion.onProgress = options.onProgress
 
+    await __(output.start())
     await __(conversion.execute())
+    await __(output.finalize())
+
+    return output.target.buffer!
   }
 
   async function compressImage(type: string) {
@@ -110,6 +116,19 @@ async function compressVideoOrImageToAvif(
 
     const track = decoder.tracks.selectedTrack
     if (!track) throw TypeError('Cannot find primary animated image track')
+
+    const output = __(
+      new Output({
+        format: new AvifOutputFormat({
+          useSingleImage: !track.animated,
+        }),
+        target: new BufferTarget(),
+      }),
+      (output) => {
+        if (output.state === 'finalized') return
+        output.cancel()
+      },
+    )
 
     const source = new VideoSampleSource({
       codec: 'av1',
@@ -144,6 +163,8 @@ async function compressVideoOrImageToAvif(
     }
 
     await __(output.finalize())
+
+    return output.target.buffer!
   }
 }
 

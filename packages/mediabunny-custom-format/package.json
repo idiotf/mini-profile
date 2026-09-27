@@ -1,6 +1,6 @@
 {
-  "name": "@mini-profile/avif-muxer-mediabunny",
-  "description": "The AVIF muxer plugin for Mediabunny used in Mini Profile monorepo",
+  "name": "@mini-profile/mediabunny-custom-format",
+  "description": "The bridge for custom format for Mediabunny used in Mini Profile monorepo",
   "version": "0.0.1",
   "type": "module",
   "files": [
@@ -33,10 +33,5 @@
     "build": "tsdown --publint",
     "prepack": "bun scripts/prepack && bun run build",
     "postpack": "bun scripts/postpack"
-  },
-  "dependencies": {
-    "@mini-profile/bit-reader": "workspace:*",
-    "@mini-profile/isobmff-writer-mediabunny": "workspace:*",
-    "@mini-profile/mediabunny-custom-format": "workspace:*"
   }
 }

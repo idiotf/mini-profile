@@ -1,22 +1,45 @@
-import { IsobmffOutputFormat, type MediaCodec } from 'mediabunny'
-// import { AvifMuxer } from './muxer'
-// import type { Output } from './mediabunny-internals'
+import {
+  IsobmffOutputFormat,
+  type IsobmffOutputFormatOptions,
+  type MediaCodec,
+} from 'mediabunny'
+import {
+  createCustomOutputFormat,
+  type Output,
+} from '@mini-profile/mediabunny-custom-format'
+import { AvifMuxer } from './muxer'
 
-export class AvifOutputFormat extends IsobmffOutputFormat {
-  override get fileExtension() {
+export interface AvifOutputFormatOptions extends IsobmffOutputFormatOptions {
+  useSingleImage?: boolean
+}
+
+export class AvifOutputFormat extends createCustomOutputFormat(
+  IsobmffOutputFormat,
+) {
+  constructor(
+    /** @internal */
+    public _options: AvifOutputFormatOptions = {},
+  ) {
+    super(_options)
+  }
+
+  get name() {
+    return 'AVIF'
+  }
+
+  get fileExtension() {
     return '.avif'
   }
 
-  override get mimeType() {
+  get mimeType() {
     return 'image/avif'
   }
 
-  override getSupportedCodecs(): MediaCodec[] {
+  getSupportedCodecs(): MediaCodec[] {
     return ['av1']
   }
 
-  // /** @internal */
-  // _createMuxer(output: Output) {
-  //   return new AvifMuxer(output, this)
-  // }
+  createMuxer(output: Output) {
+    return new AvifMuxer(output, this)
+  }
 }

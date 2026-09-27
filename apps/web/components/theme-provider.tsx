@@ -45,11 +45,11 @@ function ThemeHotkey() {
     function onKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented || event.repeat) return
       if (event.metaKey || event.ctrlKey || event.altKey) return
-      if (event.key.toLowerCase() != 'd') return
+      if (event.key.toLowerCase() !== 'd') return
       if (isTypingTarget(event.target)) return
 
       setTheme(
-        event.shiftKey ? 'system' : resolvedTheme == 'dark' ? 'light' : 'dark',
+        event.shiftKey ? 'system' : resolvedTheme === 'dark' ? 'light' : 'dark',
       )
     }
 

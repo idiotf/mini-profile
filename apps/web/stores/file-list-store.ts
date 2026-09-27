@@ -48,7 +48,7 @@ class FileItem {
   }
 
   async startCompression() {
-    if (this.state != 'idle' && this.state != 'error') return
+    if (this.state !== 'idle' && this.state !== 'error') return
 
     try {
       this.state = 'processing'
@@ -58,7 +58,7 @@ class FileItem {
         this.output = output
       })
     } catch (e) {
-      if (e == abortError) return
+      if (e === abortError) return
       if (typeof e != 'string') console.error(e)
 
       runInAction(() => {
