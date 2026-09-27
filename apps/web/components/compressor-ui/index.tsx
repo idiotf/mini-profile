@@ -170,6 +170,20 @@ const FileItemUI = observer(({ i }: FileItemUIProps) => {
   )
 })
 
+const supportingFormats = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+
+  'video/mp4',
+  'video/quicktime',
+  'video/x-matroska',
+  'video/webm',
+  'video/mp2t',
+]
+
 export type CompressorUIProps = React.ComponentProps<'div'>
 
 export const CompressorUI = observer(
@@ -204,6 +218,7 @@ export const CompressorUI = observer(
       <div {...props} className={cn('space-y-2', className)}>
         <ImageSelectZone
           multiple
+          accept={supportingFormats}
           onFileSelect={handleFileSelect}
           className='w-full!'
         />

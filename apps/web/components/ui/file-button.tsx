@@ -77,7 +77,7 @@ export type ImageSelectZoneProps = BaseSelectZoneProps
 
 export function ImageSelectZone({ ...props }: ImageSelectZoneProps) {
   return (
-    <FileSelectZone accept={['image/*', 'video/*']} {...props}>
+    <FileSelectZone accept={props.accept ?? ['image/*', 'video/*']} {...props}>
       <FilePlusCorner />
       <span>
         이미지, 동영상을 드롭하거나 선택
