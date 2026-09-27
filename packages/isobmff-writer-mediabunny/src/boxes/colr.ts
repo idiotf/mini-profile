@@ -8,8 +8,7 @@ export class Colr extends Box {
     }
     if (hasNonAsciiCharacters(type)) {
       throw TypeError(
-        'The type of colr must only include ascii characters; received ' +
-          type,
+        'The type of colr must only include ascii characters; received ' + type,
       )
     }
 

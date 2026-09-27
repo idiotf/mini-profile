@@ -244,7 +244,8 @@ export function getSeqFromOBU(data: Uint8Array) {
       throw TypeError('OBU has no size field')
     }
 
-    let size = 0, shift = 0
+    let size = 0
+    let shift = 0
     for (;;) {
       if (i >= data.length) {
         throw TypeError('Truncated OBU size')

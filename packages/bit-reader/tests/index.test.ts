@@ -13,9 +13,8 @@ class TestDataGenerator {
   }
 
   generateRandomBits(byteLength = this.randInt(32, 1024)) {
-    const bits = Array.from(
-      { length: byteLength * 8 },
-      () => this.randInt(0, 1),
+    const bits = Array.from({ length: byteLength * 8 }, () =>
+      this.randInt(0, 1),
     )
     const bytes = new Uint8Array(byteLength)
     for (let i = 0; i < bits.length; ++i) {
@@ -34,9 +33,7 @@ describe(`Bit Reader (seed: ${testSeed})`, () => {
     const { bits, bytes } = generator.generateRandomBits()
     const reader = new BitReader(bytes)
     for (let i = 0; i + 8 <= bits.length; i += 8) {
-      const expected = bits
-        .slice(i, i + 8)
-        .reduce((acc, v) => (acc << 1) | v)
+      const expected = bits.slice(i, i + 8).reduce((acc, v) => (acc << 1) | v)
       const actual = reader.read(8)
       assert.deepStrictEqual(expected, actual)
     }
@@ -47,16 +44,11 @@ describe(`Bit Reader (seed: ${testSeed})`, () => {
     const { bits, bytes } = generator.generateRandomBits()
     const reader = new BitReader(bytes)
     for (let i = 0; i + 7 <= bits.length; i += 7) {
-      const expected = bits
-        .slice(i, i + 7)
-        .reduce((acc, v) => (acc << 1) | v)
+      const expected = bits.slice(i, i + 7).reduce((acc, v) => (acc << 1) | v)
       const actual = reader.read(7)
       assert.deepStrictEqual(expected, actual)
     }
-    assert.deepStrictEqual(
-      reader.bitOffset,
-      7 * Math.floor(bits.length / 7),
-    )
+    assert.deepStrictEqual(reader.bitOffset, 7 * Math.floor(bits.length / 7))
   })
 
   it('03. repeat reading 1 bit until end', () => {
@@ -76,7 +68,7 @@ describe(`Bit Reader (seed: ${testSeed})`, () => {
     for (let i = 0; i + 8 <= bits.length;) {
       {
         const expected = bits
-          .slice(i, i += 7)
+          .slice(i, (i += 7))
           .reduce((acc, v) => (acc << 1) | v)
         const actual = reader.read(7)
         assert.deepStrictEqual(expected, actual)
@@ -87,10 +79,7 @@ describe(`Bit Reader (seed: ${testSeed})`, () => {
         assert.deepStrictEqual(expected, actual)
       }
     }
-    assert.deepStrictEqual(
-      reader.bitOffset,
-      bits.length,
-    )
+    assert.deepStrictEqual(reader.bitOffset, bits.length)
   })
 
   it('05. repeat reading 1 bits -> 7 bit -> 1 bits -> ...', () => {
@@ -104,16 +93,13 @@ describe(`Bit Reader (seed: ${testSeed})`, () => {
       }
       {
         const expected = bits
-          .slice(i, i += 7)
+          .slice(i, (i += 7))
           .reduce((acc, v) => (acc << 1) | v)
         const actual = reader.read(7)
         assert.deepStrictEqual(expected, actual)
       }
     }
-    assert.deepStrictEqual(
-      reader.bitOffset,
-      bits.length,
-    )
+    assert.deepStrictEqual(reader.bitOffset, bits.length)
   })
 
   it('06. bitOffset === bits.length, read 1 bits', () => {
