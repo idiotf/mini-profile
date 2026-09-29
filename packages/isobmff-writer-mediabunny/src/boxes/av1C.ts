@@ -30,7 +30,7 @@ export class Av1C extends Box {
       !isU4(av1Config.initialPresentationDelay - 1)
     ) {
       throw TypeError(
-        'The initial_presentation_delay of av1C must in range 1~16; received ' +
+        'The initial_presentation_delay of av1C must be in range 1~16; received ' +
           av1Config.initialPresentationDelay,
       )
     }

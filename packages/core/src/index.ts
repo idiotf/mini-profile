@@ -107,23 +107,22 @@ async function compressVideoOrImageToAvif(
       // 2. If throws, retry without desiredWidth/desiredHeight
       // (See https://issues.chromium.org/issues/562384494)
 
+      let decoder: ImageDecoder | undefined
       try {
-        const decoder = __(
-          new ImageDecoder({
-            type,
-            data: blob.stream(),
-            desiredWidth: options.width,
-            desiredHeight: options.height,
-            preferAnimation: true,
-          }),
-          (decoder) => decoder.close(),
-        )
+        decoder = new ImageDecoder({
+          type,
+          data: blob.stream(),
+          desiredWidth: options.width,
+          desiredHeight: options.height,
+          preferAnimation: true,
+        })
         await __(decoder.tracks.ready)
-        return decoder
+        return __(decoder, (decoder) => decoder.close())
       } catch (e) {
         console.warn(e)
+        decoder?.close()
 
-        const decoder = __(
+        decoder = __(
           new ImageDecoder({
             type,
             data: blob.stream(),
