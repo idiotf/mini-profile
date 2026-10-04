@@ -49,6 +49,8 @@ class FileItem {
 
   async startCompression() {
     if (this.state !== 'idle' && this.state !== 'error') return
+    this.progress = 0
+    this.processedTime = 0
 
     try {
       this.state = 'processing'
