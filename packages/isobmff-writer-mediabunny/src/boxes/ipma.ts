@@ -51,7 +51,6 @@ export class Ipma extends FullBox {
 
     const data = new Uint8Array(4 + entriesSize)
     const view = new DataView(data.buffer)
-    view.setUint32(0, entries.length)
 
     function setU8(num: number) {
       view.setUint8(offset, num)
@@ -68,7 +67,9 @@ export class Ipma extends FullBox {
       offset += 4
     }
 
-    let offset = 4
+    let offset = 0
+    
+    setU32(entries.length)
     for (const entry of entries) {
       if (version === 0) {
         setU16(entry.itemID)

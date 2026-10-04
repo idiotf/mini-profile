@@ -1,18 +1,11 @@
-import { ContainerBox } from '../box-base'
-import type { Ipco } from './ipco'
-import type { Ipma } from './ipma'
-
-export interface IprpBoxes {
-  ipco: Ipco
-  ipma: Ipma
-}
+import { type Box, ContainerBox } from '../box-base'
 
 export class Iprp extends ContainerBox {
-  constructor(iprpBoxes: IprpBoxes) {
-    super('iprp', [iprpBoxes.ipco, iprpBoxes.ipma])
+  constructor(boxes: Box[]) {
+    super('iprp', boxes)
   }
 }
 
-export function iprp(iprpBoxes: IprpBoxes) {
-  return new Iprp(iprpBoxes)
+export function iprp(boxes: Box[]) {
+  return new Iprp(boxes)
 }

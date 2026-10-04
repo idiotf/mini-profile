@@ -9,124 +9,54 @@ const CP_BT_709 = 1
 const TC_SRGB = 13
 const MC_IDENTITY = 0
 
-export interface ColorConfig {
-  colorPrimaries: number
-  transferCharacteristics: number
-  matrixCoefficients: number
-  colorRange: boolean
-}
-
-export interface SequenceHeader extends ColorConfig {
+export interface SequenceHeader {
   profile: 0 | 1 | 2
   levelIdx0: number
 
   seqTier0: boolean
   highBitdepth: boolean
   twelveBit: boolean
+  bitDepth: 8 | 10 | 12
   monochrome: boolean
 
   chromaSubsamplingX: boolean
   chromaSubsamplingY: boolean
   chromaSamplePosition: 0 | 1 | 2 | 3
 
+  colorPrimaries: number
+  transferCharacteristics: number
+  matrixCoefficients: number
+  colorRange: boolean
+
   initialPresentationDelay: number | undefined
 }
 
 export function parseSequenceHeader(seq: Uint8Array): SequenceHeader {
-  let seqLevelIdx0!: number
+  let levelIdx0!: number
   let seqTier0!: boolean
-  let highBitdepth!: boolean
-  let twelveBit!: boolean
-  let monochrome!: boolean
-  let chromaSubsamplingX!: boolean
-  let chromaSubsamplingY!: boolean
-  let chromaSamplePosition: 0 | 1 | 2 | 3 = CSP_UNKNOWN
   let initialPresentationDelay
-  let colorConfigData
-
-  function colorConfig(): ColorConfig {
-    highBitdepth = reader.readBool()
-    twelveBit = seqProfile === 2 && highBitdepth && reader.readBool()
-    monochrome = seqProfile !== 1 && reader.readBool()
-
-    let colorPrimaries
-    let transferCharacteristics
-    let matrixCoefficients
-    let colorRange
-
-    const colorDescriptionPresentFlag = reader.readBool()
-    if (colorDescriptionPresentFlag) {
-      colorPrimaries = reader.read(8)
-      transferCharacteristics = reader.read(8)
-      matrixCoefficients = reader.read(8)
-    } else {
-      colorPrimaries = CP_UNSPECIFIED
-      transferCharacteristics = TC_UNSPECIFIED
-      matrixCoefficients = MC_UNSPECIFIED
-    }
-
-    if (monochrome) {
-      colorRange = reader.readBool()
-
-      chromaSubsamplingX = true
-      chromaSubsamplingY = true
-      chromaSamplePosition = CSP_UNKNOWN
-    } else if (
-      colorPrimaries === CP_BT_709 &&
-      transferCharacteristics === TC_SRGB &&
-      matrixCoefficients === MC_IDENTITY
-    ) {
-      colorRange = reader.readBool()
-
-      chromaSubsamplingX = false
-      chromaSubsamplingY = false
-    } else {
-      colorRange = reader.readBool()
-
-      if (seqProfile === 0) {
-        chromaSubsamplingX = true
-        chromaSubsamplingY = true
-      } else if (seqProfile === 1) {
-        chromaSubsamplingX = false
-        chromaSubsamplingY = false
-      } else {
-        if (twelveBit) {
-          chromaSubsamplingX = reader.readBool()
-          chromaSubsamplingY = chromaSubsamplingX && reader.readBool()
-        } else {
-          chromaSubsamplingX = true
-          chromaSubsamplingY = false
-        }
-      }
-
-      if (chromaSubsamplingX && chromaSubsamplingY) {
-        chromaSamplePosition = reader.read(2) as 0 | 1 | 2 | 3
-      }
-    }
-
-    return {
-      colorPrimaries,
-      transferCharacteristics,
-      matrixCoefficients,
-      colorRange,
-    }
-  }
+  let colorPrimaries
+  let transferCharacteristics
+  let matrixCoefficients
+  let colorRange
+  let chromaSubsamplingX
+  let chromaSubsamplingY
+  let chromaSamplePosition: 0 | 1 | 2 | 3 = CSP_UNKNOWN
 
   const reader = new BitReader(seq)
 
-  const seqProfile = reader.read(3)
+  const profile = reader.read(3) as 0 | 1 | 2
   reader.skip(1)
 
   const reducedStillPictureHeader = reader.read(1)
   if (reducedStillPictureHeader) {
-    seqLevelIdx0 = reader.read(5)
+    levelIdx0 = reader.read(5)
     seqTier0 = false
 
     const frameWidthBitsMinus1 = reader.read(4)
     const frameHeightBitsMinus1 = reader.read(4)
 
     reader.skip(frameWidthBitsMinus1 + frameHeightBitsMinus1 + 8)
-    colorConfigData = colorConfig()
   } else {
     let decoderModelInfoPresentFlag
     let bufferDelayLengthMinus1
@@ -155,7 +85,7 @@ export function parseSequenceHeader(seq: Uint8Array): SequenceHeader {
       const seqLevelIdx = reader.read(5)
       const seqTier = seqLevelIdx > 7 && reader.readBool()
       if (i === 0) {
-        seqLevelIdx0 = seqLevelIdx
+        levelIdx0 = seqLevelIdx
         seqTier0 = seqTier
       }
 
@@ -212,20 +142,78 @@ export function parseSequenceHeader(seq: Uint8Array): SequenceHeader {
     }
 
     reader.skip(3)
-    colorConfigData = colorConfig()
+  }
+
+  const highBitdepth = reader.readBool()
+  const twelveBit = profile === 2 && highBitdepth && reader.readBool()
+  const bitDepth = highBitdepth ? (twelveBit ? 12 : 10) : 8
+  const monochrome = profile !== 1 && reader.readBool()
+
+  const colorDescriptionPresentFlag = reader.readBool()
+  if (colorDescriptionPresentFlag) {
+    colorPrimaries = reader.read(8)
+    transferCharacteristics = reader.read(8)
+    matrixCoefficients = reader.read(8)
+  } else {
+    colorPrimaries = CP_UNSPECIFIED
+    transferCharacteristics = TC_UNSPECIFIED
+    matrixCoefficients = MC_UNSPECIFIED
+  }
+
+  if (monochrome) {
+    colorRange = reader.readBool()
+
+    chromaSubsamplingX = true
+    chromaSubsamplingY = true
+    chromaSamplePosition = CSP_UNKNOWN
+  } else if (
+    colorPrimaries === CP_BT_709 &&
+    transferCharacteristics === TC_SRGB &&
+    matrixCoefficients === MC_IDENTITY
+  ) {
+    colorRange = reader.readBool()
+
+    chromaSubsamplingX = false
+    chromaSubsamplingY = false
+  } else {
+    colorRange = reader.readBool()
+
+    if (profile === 0) {
+      chromaSubsamplingX = true
+      chromaSubsamplingY = true
+    } else if (profile === 1) {
+      chromaSubsamplingX = false
+      chromaSubsamplingY = false
+    } else {
+      if (twelveBit) {
+        chromaSubsamplingX = reader.readBool()
+        chromaSubsamplingY = chromaSubsamplingX && reader.readBool()
+      } else {
+        chromaSubsamplingX = true
+        chromaSubsamplingY = false
+      }
+    }
+
+    if (chromaSubsamplingX && chromaSubsamplingY) {
+      chromaSamplePosition = reader.read(2) as 0 | 1 | 2 | 3
+    }
   }
 
   return {
-    ...colorConfigData,
-    profile: seqProfile as 0 | 1 | 2,
-    levelIdx0: seqLevelIdx0,
+    profile,
+    levelIdx0,
     seqTier0,
     highBitdepth,
     twelveBit,
+    bitDepth,
     monochrome,
     chromaSubsamplingX,
     chromaSubsamplingY,
     chromaSamplePosition,
+    colorPrimaries,
+    transferCharacteristics,
+    matrixCoefficients,
+    colorRange,
     initialPresentationDelay,
   }
 }

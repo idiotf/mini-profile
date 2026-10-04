@@ -11,6 +11,7 @@ import { AvifMuxer } from './muxer'
 
 export interface AvifOutputFormatOptions extends IsobmffOutputFormatOptions {
   useSingleImage?: boolean
+  repetitionCount?: number
 }
 
 export class AvifOutputFormat extends createCustomOutputFormat(

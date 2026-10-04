@@ -1,4 +1,4 @@
-import { Box, ContainerBox } from '../box-base'
+import { type Box, ContainerBox } from '../box-base'
 
 export class Ipco extends ContainerBox {
   constructor(boxes: Box[]) {

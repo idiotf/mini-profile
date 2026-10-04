@@ -13,6 +13,8 @@ import {
 } from '@mini-profile/isobmff-writer-mediabunny'
 
 import {
+  type Infe,
+  type IlocItem,
   ftyp,
   meta,
   hdlr,
@@ -28,13 +30,33 @@ import {
   pixi,
   av1C,
   colr,
-  type Infe,
-  type IlocItem,
+  moov,
+  mvhd,
+  trak,
+  tkhd,
+  edts,
+  elst,
+  mdia,
+  mdhd,
+  minf,
+  vmhd,
+  dinf,
+  dref,
+  url,
+  stbl,
+  stsd,
+  av01,
+  stts,
+  stsc,
+  stsz,
+  stco,
 } from '@mini-profile/isobmff-writer-mediabunny/boxes'
 
 import { getSeqFromOBU, parseSequenceHeader } from './av1-sequence'
-import { buildAvifMimeType } from './misc'
+import { approximateRational, buildAvifMimeType, rle, sumAndRoundDelta } from './misc'
 import type { AvifOutputFormat } from './output-format'
+
+const DEFAULT_TIMESCALE = 57600
 
 function sumAllBoxesSize(boxes: Box[], canUseZeroSize?: boolean) {
   return boxes.reduce(
@@ -148,32 +170,131 @@ export class AvifMuxer extends CustomMuxer {
         throw TypeError('AVIF internal error: invalid decoderConfig')
       }
 
-      if (this.format._options.useSingleImage && this.packets.length !== 1) {
+      const useSingleImage = this.format._options.useSingleImage
+      if (useSingleImage && this.packets.length !== 1) {
         throw TypeError(
           'The length of packets of AVIF single image must be 1; received ' +
             this.packets.length,
         )
       }
 
-      const generateMetaBox = () =>
-        meta({
-          hdlr: hdlr(0, 'pict'),
-          pitm: pitm(),
-          iloc: iloc(ilocItems),
-          iinf: iinf(infeBoxes),
-          iprp: iprp({
-            ipco: ipco(ipcoBoxes),
-            ipma: ipma([
-              {
-                itemID: 1,
-                associations: ipcoBoxes.map((box, i) => ({
-                  propertyIndex: i + 1,
-                  essential: box.type === 'av1C',
-                })),
-              },
+      const now = new Date()
+
+      const width = firstMeta.decoderConfig.codedWidth
+      const height = firstMeta.decoderConfig.codedHeight
+
+      const primaryTrackMetadata = (this.output.tracks[0] as OutputVideoTrack).metadata
+      const frameRate = primaryTrackMetadata.frameRate
+      const timescale = frameRate !== undefined
+        ? approximateRational(frameRate, 1e6).num
+        : DEFAULT_TIMESCALE
+
+      const language = primaryTrackMetadata.languageCode
+
+      const packetDeltaList = this.packets.map((packet) =>
+        packet.duration * timescale,
+      )
+      const packetDeltaRle = rle(sumAndRoundDelta(packetDeltaList))
+      const packetDeltaEntries = packetDeltaRle.map((v) => ({
+        sampleCount: v.count,
+        sampleDelta: v.value,
+      }))
+
+      const lastPacket = this.packets[this.packets.length - 1]!
+      const totalDuration = lastPacket.timestamp + lastPacket.duration
+      const totalDurationInTimescale = totalDuration * timescale
+
+      const generateMetadataBoxes = () => {
+        const boxes: Box[] = [
+          meta([
+            hdlr('pict', 'PictureHandler'),
+            pitm(),
+            iloc(ilocItems),
+            iinf(infeBoxes),
+            iprp([
+              ipco(ipcoBoxes),
+              ipma([
+                {
+                  itemID: 1,
+                  associations: ipcoBoxes.map((box, i) => ({
+                    propertyIndex: i + 1,
+                    essential: box.type === 'av1C',
+                  })),
+                },
+              ]),
             ]),
-          }),
-        })
+          ]),
+        ]
+
+        if (!useSingleImage) {
+          boxes.push(moov([
+            mvhd({
+              creationTime: now,
+              modificationTime: now,
+              timescale,
+              duration: 0xffff_ffff_ffff_ffffn,
+              matrix: [1, 0, 0, 0, 1, 0, 0, 0, 1],
+              nextTrackID: 2,
+            }),
+            trak([
+              tkhd({
+                creationTime: now,
+                modificationTime: now,
+                trackID: 1,
+                duration: 0xffff_ffff_ffff_ffffn,
+                matrix: [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                width,
+                height,
+              }),
+              edts(
+                elst([{
+                  segmentDuration: totalDurationInTimescale,
+                  mediaTime: 0,
+                  mediaRate: 1,
+                }], true),
+              ),
+              mdia([
+                mdhd({
+                  creationTime: now,
+                  modificationTime: now,
+                  timescale,
+                  duration: totalDurationInTimescale,
+                  language,
+                }),
+                hdlr('pict', 'PictureHandler'),
+                minf([
+                  vmhd(0, [0, 0, 0]),
+                  dinf([dref([url()])]),
+                  stbl([
+                    stsd([
+                      av01({
+                        dataReferenceIndex: 1,
+                        width,
+                        height,
+                        horizResolution: 72 << 16,
+                        vertResolution: 72 << 16,
+                        frameCount: this.packets.length,
+                        compressorName: '',
+                        depth: seqHeader.bitDepth * (seqHeader.monochrome ? 1 : 3),
+                      }, [av1CBox]),
+                    ]),
+                    stts(packetDeltaEntries),
+                    stsc([{
+                      firstChunk: 1,
+                      samplesPerChunk: this.packets.length,
+                      sampleDescriptionIndex: 1,
+                    }]),
+                    stsz(this.packets.map((v) => v.byteLength)),
+                    stco(stcoItems), // Will be changed later
+                  ]),
+                ]),
+              ]),
+            ]),
+          ]))
+        }
+
+        return boxes
+      }
 
       const ilocItems: IlocItem[] = [
         {
@@ -190,43 +311,30 @@ export class AvifMuxer extends CustomMuxer {
       const infeBoxes: Infe[] = [infe(1, 0, 'av01', 'Color')]
 
       const seqPayload = getSeqFromOBU(firstPacket.data)
-      const sequenceHeader = parseSequenceHeader(seqPayload)
+      const seqHeader = parseSequenceHeader(seqPayload)
+      const av1CBox = av1C(seqHeader)
+
       const ipcoBoxes: Box[] = [
-        ispe(
-          firstMeta.decoderConfig.codedWidth,
-          firstMeta.decoderConfig.codedHeight,
+        ispe(width, height),
+        pixi(
+          seqHeader.monochrome
+            ? [seqHeader.bitDepth]
+            : [
+                seqHeader.bitDepth,
+                seqHeader.bitDepth,
+                seqHeader.bitDepth,
+              ],
         ),
-        pixi([8, 8, 8]),
-        av1C(sequenceHeader),
+        av1CBox,
         colr.nclx({
-          colourPrimaries: sequenceHeader.colorPrimaries,
-          transferCharacteristics: sequenceHeader.transferCharacteristics,
-          matrixCoefficients: sequenceHeader.matrixCoefficients,
-          fullRangeFlag: sequenceHeader.colorRange,
+          colourPrimaries: seqHeader.colorPrimaries,
+          transferCharacteristics: seqHeader.transferCharacteristics,
+          matrixCoefficients: seqHeader.matrixCoefficients,
+          fullRangeFlag: seqHeader.colorRange,
         }),
       ]
 
-      const canUseZeroSize = false
-
-      let metaBox
-      for (;;) {
-        if (
-          metaBox?.getSize(canUseZeroSize) ===
-          (metaBox = generateMetaBox()).getSize(canUseZeroSize)
-        ) {
-          break
-        }
-
-        let dataOffsetFromFile =
-          this.baseOffset + metaBox.getSize(canUseZeroSize) + 8 // size and type of mdat box
-
-        for (const { extents } of ilocItems) {
-          for (const extent of extents) {
-            extent.offset = dataOffsetFromFile
-            dataOffsetFromFile += extent.length
-          }
-        }
-      }
+      const stcoItems = [0]
 
       const mdatData = new Uint8Array(
         this.packets.reduce((acc, packet) => acc + packet.byteLength, 0),
@@ -237,7 +345,30 @@ export class AvifMuxer extends CustomMuxer {
         dataOffsetFromMdat += packet.byteLength
       }
 
-      this.writer.writeBoxes([metaBox, mdat(mdatData)])
+      const mdatBox = mdat(mdatData)
+      const mdatHeaderSize = mdatBox.getHeaderSize()
+
+      let boxes, boxesSize
+      for (;;) {
+        if (
+          boxesSize ===
+          (boxesSize = sumAllBoxesSize(boxes = generateMetadataBoxes()))
+        ) {
+          break
+        }
+
+        let dataOffsetFromFile = this.baseOffset + boxesSize + mdatHeaderSize
+        stcoItems[0] = dataOffsetFromFile
+
+        for (const { extents } of ilocItems) {
+          for (const extent of extents) {
+            extent.offset = dataOffsetFromFile
+            dataOffsetFromFile += extent.length
+          }
+        }
+      }
+
+      this.writer.writeBoxes([...boxes, mdatBox])
     } finally {
       release()
     }

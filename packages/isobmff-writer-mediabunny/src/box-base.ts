@@ -49,8 +49,12 @@ export class Box {
     return 4
   }
 
-  getSize(canUseZeroSize = false) {
-    return this.getSizeHeaderSize(canUseZeroSize) + 4 + this.boxData.byteLength
+  getHeaderSize(canUseZeroSize = false) {
+    return this.getSizeHeaderSize(canUseZeroSize) + 4
+  }
+
+  getSize(canUseZeroSize?: boolean) {
+    return this.getHeaderSize(canUseZeroSize) + this.boxData.byteLength
   }
 
   getEncodedData(canUseZeroSize = false) {

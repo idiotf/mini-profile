@@ -155,7 +155,7 @@ export class Iloc extends FullBox {
       setU16(extents.length)
 
       for (const extent of extents) {
-        // When indexSize !== 0, extent.index is provided always
+        // When indexSize !== 0, extent.index is always provided
         // because of above verification
         setU64OrU32(indexSize, extent.index!)
         setU64OrU32(offsetSize, extent.offset - baseOffset)
