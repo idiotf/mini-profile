@@ -68,7 +68,7 @@ export class Ipma extends FullBox {
     }
 
     let offset = 0
-    
+
     setU32(entries.length)
     for (const entry of entries) {
       if (version === 0) {

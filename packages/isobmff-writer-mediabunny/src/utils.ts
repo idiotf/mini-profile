@@ -64,7 +64,11 @@ export function isU64(num: number | bigint) {
 }
 
 export function isI64(num: number | bigint) {
-  return isIntOrBigInt(num) && -0x8000_0000_0000_0000n <= num && num <= 0x7fff_ffff_ffff_ffffn
+  return (
+    isIntOrBigInt(num) &&
+    -0x8000_0000_0000_0000n <= num &&
+    num <= 0x7fff_ffff_ffff_ffffn
+  )
 }
 
 const BMFF_1970_OFFSET = 2_082_844_800

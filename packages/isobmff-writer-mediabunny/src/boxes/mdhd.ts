@@ -68,9 +68,7 @@ export class Mdhd extends FullBox {
     }
 
     const version =
-      isU32(creationTime) &&
-      isU32(modificationTime) &&
-      isU32(fields.duration)
+      isU32(creationTime) && isU32(modificationTime) && isU32(fields.duration)
         ? 0
         : 1
 

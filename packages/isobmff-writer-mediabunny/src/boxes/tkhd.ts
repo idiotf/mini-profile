@@ -39,23 +39,23 @@ export interface TkhdFields {
 
 export class Tkhd extends FullBox {
   constructor(fields: TkhdFields) {
-      const creationTime = toBmffTimestamp(fields.creationTime)
-      const modificationTime = toBmffTimestamp(fields.modificationTime)
-  
-      if (!isU64(creationTime)) {
-        throw TypeError(
-          'The creation_time of tkhd must be later than Jan 01 1904; received ' +
-            fields.creationTime,
-        )
-      }
-  
-      if (!isU64(modificationTime)) {
-        throw TypeError(
-          'The modification_time of tkhd must be later than Jan 01 1904; received ' +
-            fields.modificationTime,
-        )
-      }
-  
+    const creationTime = toBmffTimestamp(fields.creationTime)
+    const modificationTime = toBmffTimestamp(fields.modificationTime)
+
+    if (!isU64(creationTime)) {
+      throw TypeError(
+        'The creation_time of tkhd must be later than Jan 01 1904; received ' +
+          fields.creationTime,
+      )
+    }
+
+    if (!isU64(modificationTime)) {
+      throw TypeError(
+        'The modification_time of tkhd must be later than Jan 01 1904; received ' +
+          fields.modificationTime,
+      )
+    }
+
     if (!isU32(fields.trackID)) {
       throw TypeError(
         'The track_ID of tkhd must have type of u32; received ' +
@@ -97,9 +97,7 @@ export class Tkhd extends FullBox {
     }
 
     const version =
-      isU32(creationTime) &&
-      isU32(modificationTime) &&
-      isU32(fields.duration)
+      isU32(creationTime) && isU32(modificationTime) && isU32(fields.duration)
         ? 0
         : 1
 

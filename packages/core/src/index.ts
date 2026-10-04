@@ -124,16 +124,19 @@ async function compressVideoOrImageToAvif(
         console.warn(e)
         decoder?.close()
 
-        const init: ImageDecoderInit = type === 'image/avif' ? {
-          type,
-          data: blob.stream(),
-          desiredWidth: options.width,
-          desiredHeight: options.height,
-        } : {
-          type,
-          data: blob.stream(),
-          preferAnimation: true,
-        }
+        const init: ImageDecoderInit =
+          type === 'image/avif'
+            ? {
+                type,
+                data: blob.stream(),
+                desiredWidth: options.width,
+                desiredHeight: options.height,
+              }
+            : {
+                type,
+                data: blob.stream(),
+                preferAnimation: true,
+              }
         decoder = __(new ImageDecoder(init), (decoder) => decoder.close())
         await __(decoder.tracks.ready)
         return decoder

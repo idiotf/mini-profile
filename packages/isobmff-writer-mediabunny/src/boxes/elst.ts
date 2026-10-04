@@ -11,11 +11,17 @@ export class Elst extends FullBox {
   constructor(entries: ElstEntry[], loop?: boolean) {
     const version = entries.every((entry) => {
       if (!isU64(entry.segmentDuration)) {
-        throw TypeError('The segment_duration of elst must have type of u32 or u64; received ' + entry.segmentDuration)
+        throw TypeError(
+          'The segment_duration of elst must have type of u32 or u64; received ' +
+            entry.segmentDuration,
+        )
       }
 
       if (!isI64(entry.mediaTime)) {
-        throw TypeError('The media_time of elst must have type of i32 or i64; received ' + entry.mediaTime)
+        throw TypeError(
+          'The media_time of elst must have type of i32 or i64; received ' +
+            entry.mediaTime,
+        )
       }
 
       return isU32(entry.segmentDuration) && isU32(entry.mediaTime)
@@ -65,7 +71,7 @@ export class Elst extends FullBox {
     }
 
     let offset = 0
-    
+
     setU32(entries.length)
     for (const { segmentDuration, mediaTime, mediaRate } of entries) {
       setU64OrU32(segmentDuration)

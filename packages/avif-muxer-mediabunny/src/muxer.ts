@@ -53,7 +53,12 @@ import {
 } from '@mini-profile/isobmff-writer-mediabunny/boxes'
 
 import { getSeqFromOBU, parseSequenceHeader } from './av1-sequence'
-import { approximateRational, buildAvifMimeType, rle, sumAndRoundDelta } from './misc'
+import {
+  approximateRational,
+  buildAvifMimeType,
+  rle,
+  sumAndRoundDelta,
+} from './misc'
 import type { AvifOutputFormat } from './output-format'
 
 const DEFAULT_TIMESCALE = 57600
@@ -183,16 +188,18 @@ export class AvifMuxer extends CustomMuxer {
       const width = firstMeta.decoderConfig.codedWidth
       const height = firstMeta.decoderConfig.codedHeight
 
-      const primaryTrackMetadata = (this.output.tracks[0] as OutputVideoTrack).metadata
+      const primaryTrackMetadata = (this.output.tracks[0] as OutputVideoTrack)
+        .metadata
       const frameRate = primaryTrackMetadata.frameRate
-      const timescale = frameRate !== undefined
-        ? approximateRational(frameRate, 1e6).num
-        : DEFAULT_TIMESCALE
+      const timescale =
+        frameRate !== undefined
+          ? approximateRational(frameRate, 1e6).num
+          : DEFAULT_TIMESCALE
 
       const language = primaryTrackMetadata.languageCode
 
-      const packetDeltaList = this.packets.map((packet) =>
-        packet.duration * timescale,
+      const packetDeltaList = this.packets.map(
+        (packet) => packet.duration * timescale,
       )
       const packetDeltaRle = rle(sumAndRoundDelta(packetDeltaList))
       const packetDeltaEntries = packetDeltaRle.map((v) => ({
@@ -227,70 +234,84 @@ export class AvifMuxer extends CustomMuxer {
         ]
 
         if (!useSingleImage) {
-          boxes.push(moov([
-            mvhd({
-              creationTime: now,
-              modificationTime: now,
-              timescale,
-              duration: 0xffff_ffff_ffff_ffffn,
-              matrix: [1, 0, 0, 0, 1, 0, 0, 0, 1],
-              nextTrackID: 2,
-            }),
-            trak([
-              tkhd({
+          boxes.push(
+            moov([
+              mvhd({
                 creationTime: now,
                 modificationTime: now,
-                trackID: 1,
+                timescale,
                 duration: 0xffff_ffff_ffff_ffffn,
                 matrix: [1, 0, 0, 0, 1, 0, 0, 0, 1],
-                width,
-                height,
+                nextTrackID: 2,
               }),
-              edts(
-                elst([{
-                  segmentDuration: totalDurationInTimescale,
-                  mediaTime: 0,
-                  mediaRate: 1,
-                }], true),
-              ),
-              mdia([
-                mdhd({
+              trak([
+                tkhd({
                   creationTime: now,
                   modificationTime: now,
-                  timescale,
-                  duration: totalDurationInTimescale,
-                  language,
+                  trackID: 1,
+                  duration: 0xffff_ffff_ffff_ffffn,
+                  matrix: [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                  width,
+                  height,
                 }),
-                hdlr('pict', 'PictureHandler'),
-                minf([
-                  vmhd(0, [0, 0, 0]),
-                  dinf([dref([url()])]),
-                  stbl([
-                    stsd([
-                      av01({
-                        dataReferenceIndex: 1,
-                        width,
-                        height,
-                        horizResolution: 72 << 16,
-                        vertResolution: 72 << 16,
-                        frameCount: this.packets.length,
-                        compressorName: '',
-                        depth: seqHeader.bitDepth * (seqHeader.monochrome ? 1 : 3),
-                      }, [av1CBox]),
+                edts(
+                  elst(
+                    [
+                      {
+                        segmentDuration: totalDurationInTimescale,
+                        mediaTime: 0,
+                        mediaRate: 1,
+                      },
+                    ],
+                    true,
+                  ),
+                ),
+                mdia([
+                  mdhd({
+                    creationTime: now,
+                    modificationTime: now,
+                    timescale,
+                    duration: totalDurationInTimescale,
+                    language,
+                  }),
+                  hdlr('pict', 'PictureHandler'),
+                  minf([
+                    vmhd(0, [0, 0, 0]),
+                    dinf([dref([url()])]),
+                    stbl([
+                      stsd([
+                        av01(
+                          {
+                            dataReferenceIndex: 1,
+                            width,
+                            height,
+                            horizResolution: 72 << 16,
+                            vertResolution: 72 << 16,
+                            frameCount: this.packets.length,
+                            compressorName: '',
+                            depth:
+                              seqHeader.bitDepth *
+                              (seqHeader.monochrome ? 1 : 3),
+                          },
+                          [av1CBox],
+                        ),
+                      ]),
+                      stts(packetDeltaEntries),
+                      stsc([
+                        {
+                          firstChunk: 1,
+                          samplesPerChunk: this.packets.length,
+                          sampleDescriptionIndex: 1,
+                        },
+                      ]),
+                      stsz(this.packets.map((v) => v.byteLength)),
+                      stco(stcoItems), // Will be changed later
                     ]),
-                    stts(packetDeltaEntries),
-                    stsc([{
-                      firstChunk: 1,
-                      samplesPerChunk: this.packets.length,
-                      sampleDescriptionIndex: 1,
-                    }]),
-                    stsz(this.packets.map((v) => v.byteLength)),
-                    stco(stcoItems), // Will be changed later
                   ]),
                 ]),
               ]),
             ]),
-          ]))
+          )
         }
 
         return boxes
@@ -319,11 +340,7 @@ export class AvifMuxer extends CustomMuxer {
         pixi(
           seqHeader.monochrome
             ? [seqHeader.bitDepth]
-            : [
-                seqHeader.bitDepth,
-                seqHeader.bitDepth,
-                seqHeader.bitDepth,
-              ],
+            : [seqHeader.bitDepth, seqHeader.bitDepth, seqHeader.bitDepth],
         ),
         av1CBox,
         colr.nclx({
@@ -352,7 +369,7 @@ export class AvifMuxer extends CustomMuxer {
       for (;;) {
         if (
           boxesSize ===
-          (boxesSize = sumAllBoxesSize(boxes = generateMetadataBoxes()))
+          (boxesSize = sumAllBoxesSize((boxes = generateMetadataBoxes())))
         ) {
           break
         }

@@ -13,8 +13,10 @@ export function approximateRational(x: number, maxDen: number) {
   const sign = x < 0 ? -1 : 1
   x = Math.abs(x)
 
-  let prevNum = 0, prevDen = 1
-  let currNum = 1, currDen = 0
+  let prevNum = 0,
+    prevDen = 1
+  let currNum = 1,
+    currDen = 0
 
   for (;;) {
     const int = Math.floor(x)
@@ -63,7 +65,8 @@ export function rle<T>(arr: T[]): RleData<T>[] {
 }
 
 export function sumAndRoundDelta(deltaList: number[]) {
-  let sum = 0, sumRound = 0
+  let sum = 0,
+    sumRound = 0
   const deltaArr: number[] = []
 
   for (const delta of deltaList) {
