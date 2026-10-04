@@ -202,7 +202,7 @@ export class AvifMuxer extends CustomMuxer {
 
       const lastPacket = this.packets[this.packets.length - 1]!
       const totalDuration = lastPacket.timestamp + lastPacket.duration
-      const totalDurationInTimescale = totalDuration * timescale
+      const totalDurationInTimescale = Math.round(totalDuration * timescale)
 
       const generateMetadataBoxes = () => {
         const boxes: Box[] = [
