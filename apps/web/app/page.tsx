@@ -12,7 +12,7 @@ export default function Page() {
       <hr className='mx-5 my-10 border-gray-200 dark:border-gray-800' />
       <section>
         <h2 className='my-6 text-center text-4xl font-medium'>압축하기</h2>
-        <CompressorUI className='m-auto max-w-3xl px-4' />
+        <CompressorUI className='m-auto my-4 max-w-3xl px-4' />
       </section>
     </main>
   )

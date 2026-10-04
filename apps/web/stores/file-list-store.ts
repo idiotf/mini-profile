@@ -29,6 +29,26 @@ class FileItem {
     makeAutoObservable(this)
   }
 
+  setWidth(width: number | undefined) {
+    this.options.width = width
+  }
+
+  setHeight(height: number | undefined) {
+    this.options.height = height
+  }
+
+  setFrameRate(frameRate: number | undefined) {
+    this.options.frameRate = frameRate
+  }
+
+  setFit(fit: CompressionOptions['fit'] | undefined) {
+    this.options.fit = fit
+  }
+
+  setQuality(quality: CompressionOptions['quality'] | undefined) {
+    this.options.quality = quality
+  }
+
   private get compressionOptions() {
     return {
       ...this.options,
