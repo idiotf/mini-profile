@@ -47,9 +47,26 @@ function FilePreview({ type, file, ...props }: FilePreviewProps) {
 
   if (type === 'image') {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img alt='' {...props} src={blobUrl} />
+    return (
+      <img
+        alt=''
+        loading='lazy'
+        decoding='async'
+        fetchPriority='low'
+        {...props}
+        src={blobUrl}
+      />
+    )
   } else {
-    return <video onContextMenu={preventDefault} {...props} src={blobUrl} />
+    return (
+      <video
+        loading='lazy'
+        preload='none'
+        onContextMenu={preventDefault}
+        {...props}
+        src={blobUrl}
+      />
+    )
   }
 }
 
