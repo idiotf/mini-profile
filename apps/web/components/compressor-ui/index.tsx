@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
+import { useBlobUrl } from '@/hooks/use-blob-url'
 import { useFileListStore } from '@/app/providers'
-import type { FileItem, FileInfo } from '@/stores/file-list-store'
+import type { FileItem } from '@/stores/file-list-store'
 
 import {
   CheckIcon,
   FileIcon,
-  ImageIcon,
-  FilmIcon,
   RefreshCwIcon,
   SettingsIcon,
   XIcon,
@@ -33,22 +32,53 @@ import {
 import { downloadBlob } from '@/utils/common/download'
 import { preventDefault } from '@/utils/common/prevent-default'
 import { formatExt, getExtOf, formatFileSize } from '@/utils/common/file-info'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select'
 
-interface AttachmentFileMediaProps {
-  info: FileInfo
+type ImgVideoIntersectProps = Omit<React.ComponentProps<'img'>, 'src'> &
+  Omit<React.ComponentProps<'video'>, 'src'>
+
+interface FilePreviewProps extends ImgVideoIntersectProps {
+  type: 'image' | 'video'
+  file: File
 }
 
-function AttachmentFileMedia({ info }: AttachmentFileMediaProps) {
-  const type = info.type.split('/')[0]
-  const Icon = (type !== undefined && {
-    image: ImageIcon,
-    video: FilmIcon,
-  }[type]) || FileIcon
+function FilePreview({ type, file, ...props }: FilePreviewProps) {
+  const blobUrl = useBlobUrl(file)
 
-  return (
+  if (type === 'image') {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img alt='' {...props} src={blobUrl} />
+  } else {
+    return <video onContextMenu={preventDefault} {...props} src={blobUrl} />
+  }
+}
+
+interface ImagePreviewProps {
+  file: File
+}
+
+function AttachmentFileMedia({ file }: ImagePreviewProps) {
+  const type = file.type.split('/')[0]
+  const isValid = type === 'image' || type === 'video'
+
+  return isValid ? (
+    <AttachmentMedia variant='image'>
+      <FilePreview
+        type={type}
+        file={file}
+        className='aspect-square w-full object-cover'
+      />
+    </AttachmentMedia>
+  ) : (
     <AttachmentMedia variant='icon'>
-      <Icon />
+      <FileIcon />
     </AttachmentMedia>
   )
 }
@@ -94,13 +124,21 @@ const FileOptionsUI = observer(({ item }: FileOptionsUIProps) => {
           <NumberInput
             value={options.width}
             min={1}
-            onValueChange={(v) => item.setWidth(v === undefined ? undefined : Math.floor(Math.max(1, v)))}
+            onValueChange={(v) =>
+              item.setWidth(
+                v === undefined ? undefined : Math.floor(Math.max(1, v)),
+              )
+            }
           />
           <span>×</span>
           <NumberInput
             value={options.height}
             min={1}
-            onValueChange={(v) => item.setHeight(v === undefined ? undefined : Math.floor(Math.max(1, v)))}
+            onValueChange={(v) =>
+              item.setHeight(
+                v === undefined ? undefined : Math.floor(Math.max(1, v)),
+              )
+            }
           />
         </div>
       </Field>
@@ -110,7 +148,11 @@ const FileOptionsUI = observer(({ item }: FileOptionsUIProps) => {
           value={options.frameRate}
           min={Number.MIN_VALUE}
           step='any'
-          onValueChange={(v) => item.setFrameRate(v === undefined ? undefined : Math.max(Number.MIN_VALUE, v))}
+          onValueChange={(v) =>
+            item.setFrameRate(
+              v === undefined ? undefined : Math.max(Number.MIN_VALUE, v),
+            )
+          }
         />
       </Field>
       <Field>
@@ -118,7 +160,9 @@ const FileOptionsUI = observer(({ item }: FileOptionsUIProps) => {
         <Select
           value={options.quality}
           onValueChange={(v) => item.setQuality(v ?? undefined)}
-          itemToStringLabel={(v) => qualityItems.find(({ value }) => value === v)!.label}
+          itemToStringLabel={(v) =>
+            qualityItems.find(({ value }) => value === v)!.label
+          }
         >
           <SelectTrigger>
             <SelectValue />
@@ -152,7 +196,7 @@ const FileItemUI = observer(({ i }: FileItemUIProps) => {
     const output = item.output
     if (!output) return
 
-    downloadBlob(output, item.fileInfo.name.replace(/(\.[^.]*)?$/, '.svg'))
+    downloadBlob(output, item.file.name.replace(/(\.[^.]*)?$/, '.svg'))
   }, [item])
 
   const onRemove = useCallback(() => {
@@ -160,14 +204,14 @@ const FileItemUI = observer(({ i }: FileItemUIProps) => {
     fileListStore.remove(i)
   }, [item, fileListStore, i])
 
-  const ext = formatExt(getExtOf(item.fileInfo.name))
-  const size = formatFileSize(item.fileInfo.size)
+  const ext = formatExt(getExtOf(item.file.name))
+  const size = formatFileSize(item.file.size)
 
   return (
     <Attachment state={item.state} className='w-full'>
-      <AttachmentFileMedia info={item.fileInfo} />
+      <AttachmentFileMedia file={item.file} />
       <AttachmentContent>
-        <AttachmentTitle>{item.fileInfo.name}</AttachmentTitle>
+        <AttachmentTitle>{item.file.name}</AttachmentTitle>
         <AttachmentDescription>
           {item.state === 'idle' ? (
             <>
