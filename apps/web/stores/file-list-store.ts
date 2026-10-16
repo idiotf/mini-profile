@@ -7,6 +7,12 @@ import {
 
 const abortError = new Error('FileItem was destroyed')
 
+export interface FileInfo {
+  name: string
+  type: string
+  size: number
+}
+
 export type { FileItem }
 class FileItem {
   readonly options: CompressionOptions = {
@@ -17,6 +23,7 @@ class FileItem {
     quality: 'very-low',
   }
 
+  file: File | null
   state: 'idle' | 'uploading' | 'processing' | 'error' | 'done' = 'idle'
   progress = 0
   processedTime = 0
@@ -24,9 +31,21 @@ class FileItem {
   error?: unknown
 
   private destroyController = new AbortController()
+  private lastFileInfo?: FileInfo
 
-  constructor(public file: File) {
+  constructor(file: File) {
+    this.file = file
     makeAutoObservable(this)
+  }
+
+  get fileInfo() {
+    return this.file
+      ? {
+          name: this.file.name,
+          type: this.file.type,
+          size: this.file.size,
+        }
+      : this.lastFileInfo!
   }
 
   setWidth(width: number | undefined) {
@@ -49,6 +68,11 @@ class FileItem {
     this.options.quality = quality
   }
 
+  private unrefFile() {
+    this.lastFileInfo = this.fileInfo
+    this.file = null
+  }
+
   private get compressionOptions() {
     return {
       ...this.options,
@@ -64,7 +88,7 @@ class FileItem {
 
   private async compress() {
     const options = this.compressionOptions
-    return compressAndExportSvg(this.file, options)
+    return compressAndExportSvg(this.file!, options)
   }
 
   async startCompression() {
@@ -78,6 +102,7 @@ class FileItem {
       runInAction(() => {
         this.state = 'done'
         this.output = output
+        this.unrefFile()
       })
     } catch (e) {
       if (e === abortError) return

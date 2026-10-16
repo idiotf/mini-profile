@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
-import { useBlobUrl } from '@/hooks/use-blob-url'
 import { useFileListStore } from '@/app/providers'
-import type { FileItem } from '@/stores/file-list-store'
+import type { FileItem, FileInfo } from '@/stores/file-list-store'
 
 import {
   CheckIcon,
   FileIcon,
+  ImageIcon,
+  FilmIcon,
   RefreshCwIcon,
   SettingsIcon,
   XIcon,
@@ -34,61 +35,20 @@ import { preventDefault } from '@/utils/common/prevent-default'
 import { formatExt, getExtOf, formatFileSize } from '@/utils/common/file-info'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 
-type ImgVideoIntersectProps = Omit<React.ComponentProps<'img'>, 'src'> &
-  Omit<React.ComponentProps<'video'>, 'src'>
-
-interface FilePreviewProps extends ImgVideoIntersectProps {
-  type: 'image' | 'video'
-  file: File
+interface AttachmentFileMediaProps {
+  info: FileInfo
 }
 
-function FilePreview({ type, file, ...props }: FilePreviewProps) {
-  const blobUrl = useBlobUrl(file)
+function AttachmentFileMedia({ info }: AttachmentFileMediaProps) {
+  const type = info.type.split('/')[0]
+  const Icon = (type !== undefined && {
+    image: ImageIcon,
+    video: FilmIcon,
+  }[type]) || FileIcon
 
-  if (type === 'image') {
-    // eslint-disable-next-line @next/next/no-img-element
-    return (
-      <img
-        alt=''
-        loading='lazy'
-        decoding='async'
-        fetchPriority='low'
-        {...props}
-        src={blobUrl}
-      />
-    )
-  } else {
-    return (
-      <video
-        loading='lazy'
-        preload='none'
-        onContextMenu={preventDefault}
-        {...props}
-        src={blobUrl}
-      />
-    )
-  }
-}
-
-interface ImagePreviewProps {
-  file: File
-}
-
-function AttachmentFileMedia({ file }: ImagePreviewProps) {
-  const type = file.type.split('/')[0]
-  const isValid = type === 'image' || type === 'video'
-
-  return isValid ? (
-    <AttachmentMedia variant='image'>
-      <FilePreview
-        type={type}
-        file={file}
-        className='aspect-square w-full object-cover'
-      />
-    </AttachmentMedia>
-  ) : (
+  return (
     <AttachmentMedia variant='icon'>
-      <FileIcon />
+      <Icon />
     </AttachmentMedia>
   )
 }
@@ -192,7 +152,7 @@ const FileItemUI = observer(({ i }: FileItemUIProps) => {
     const output = item.output
     if (!output) return
 
-    downloadBlob(output, item.file.name.replace(/(\.[^.]*)?$/, '.svg'))
+    downloadBlob(output, item.fileInfo.name.replace(/(\.[^.]*)?$/, '.svg'))
   }, [item])
 
   const onRemove = useCallback(() => {
@@ -200,14 +160,14 @@ const FileItemUI = observer(({ i }: FileItemUIProps) => {
     fileListStore.remove(i)
   }, [item, fileListStore, i])
 
-  const ext = formatExt(getExtOf(item.file.name))
-  const size = formatFileSize(item.file.size)
+  const ext = formatExt(getExtOf(item.fileInfo.name))
+  const size = formatFileSize(item.fileInfo.size)
 
   return (
     <Attachment state={item.state} className='w-full'>
-      <AttachmentFileMedia file={item.file} />
+      <AttachmentFileMedia info={item.fileInfo} />
       <AttachmentContent>
-        <AttachmentTitle>{item.file.name}</AttachmentTitle>
+        <AttachmentTitle>{item.fileInfo.name}</AttachmentTitle>
         <AttachmentDescription>
           {item.state === 'idle' ? (
             <>

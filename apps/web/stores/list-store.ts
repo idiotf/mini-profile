@@ -1,7 +1,7 @@
 import { makeAutoObservable } from 'mobx'
 
 export interface ListItem<T> {
-  key: number
+  readonly key: number
   value: T
 }
 

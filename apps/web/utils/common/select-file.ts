@@ -8,7 +8,7 @@ export async function selectFile(options?: SelectFileOptions) {
   const input = document.createElement('input')
   input.type = 'file'
 
-  if (options?.multiple) input.multiple = true
+  if (options?.multiple) input.multiple = options.multiple
   if (options?.accept) input.accept = options.accept.join(',')
   if (options?.capture) input.capture = options.capture
 
