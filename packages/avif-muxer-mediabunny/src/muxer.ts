@@ -246,6 +246,9 @@ export class AvifMuxer extends CustomMuxer {
               }),
               trak([
                 tkhd({
+                  enabled: true,
+                  inMovie: true,
+                  inPreview: true,
                   creationTime: now,
                   modificationTime: now,
                   trackID: 1,

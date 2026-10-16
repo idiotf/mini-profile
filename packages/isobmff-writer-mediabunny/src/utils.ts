@@ -77,16 +77,21 @@ export function toBmffTimestamp(date: Date) {
   return Math.floor(date.getTime() / 1000) + BMFF_1970_OFFSET
 }
 
-export function encodeFixedPoint(number: number, bits: number) {
-  const pow2 = 1 << bits
+export function encodeFixedPoint(
+  number: number,
+  intBits: number,
+  lowBits = intBits,
+) {
+  const pow2Int = 1 << intBits
+  const pow2Low = 1 << lowBits
 
-  if (number < 0 || pow2 <= number) {
+  if (number < 0 || pow2Int <= number) {
     throw TypeError(
-      `Fixed point number must be in range [0, ${pow2}); received ${number}`,
+      `Fixed point number must be in range [0, ${pow2Int}); received ${number}`,
     )
   }
 
-  const int = number & (pow2 - 1)
-  const low = (pow2 * (number % 1)) | 0
-  return (int << bits) | low
+  const int = number & (pow2Int - 1)
+  const low = (pow2Low * (number % 1)) | 0
+  return (int << lowBits) | low
 }

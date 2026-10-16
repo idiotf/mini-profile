@@ -1,5 +1,11 @@
 import { FullBox } from '../box-base'
-import { isU16, isU32, isU64, toBmffTimestamp } from '../utils'
+import {
+  encodeFixedPoint,
+  isU16,
+  isU32,
+  isU64,
+  toBmffTimestamp,
+} from '../utils'
 
 // prettier-ignore
 type Matrix3x3 = [
@@ -8,21 +14,12 @@ type Matrix3x3 = [
   number, number, number,
 ]
 
-function encodeFixedPoint(number: number, bits: number) {
-  const pow2 = 1 << bits
-
-  if (number < 0 || pow2 <= number) {
-    throw TypeError(
-      `Fixed point number must be in range [0, ${pow2}); received ${number}`,
-    )
-  }
-
-  const int = number & (pow2 - 1)
-  const low = (pow2 * (number % 1)) | 0
-  return (int << bits) | low
-}
-
 export interface TkhdFields {
+  enabled?: boolean
+  inMovie?: boolean
+  inPreview?: boolean
+  sizeIsAspectRatio?: boolean
+
   creationTime: Date
   modificationTime: Date
   trackID: number
@@ -101,6 +98,12 @@ export class Tkhd extends FullBox {
         ? 0
         : 1
 
+    const flags =
+      (fields.enabled ? 1 : 0) |
+      (fields.inMovie ? 2 : 0) |
+      (fields.inPreview ? 4 : 0) |
+      (fields.sizeIsAspectRatio ? 8 : 0)
+
     const data = new Uint8Array(version === 1 ? 92 : 80)
     const view = new DataView(data.buffer)
 
@@ -143,19 +146,19 @@ export class Tkhd extends FullBox {
     setU16(fields.alternateGroup ?? 0)
     setU16(fields.volume ?? 0)
     skip(2)
-    setU32(fields.matrix[0])
-    setU32(fields.matrix[1])
-    setU32(fields.matrix[2])
-    setU32(fields.matrix[3])
-    setU32(fields.matrix[4])
-    setU32(fields.matrix[5])
-    setU32(fields.matrix[6])
-    setU32(fields.matrix[7])
-    setU32(fields.matrix[8])
+    setU32(encodeFixedPoint(fields.matrix[0], 16))
+    setU32(encodeFixedPoint(fields.matrix[1], 16))
+    setU32(encodeFixedPoint(fields.matrix[2], 2, 30))
+    setU32(encodeFixedPoint(fields.matrix[3], 16))
+    setU32(encodeFixedPoint(fields.matrix[4], 16))
+    setU32(encodeFixedPoint(fields.matrix[5], 2, 30))
+    setU32(encodeFixedPoint(fields.matrix[6], 16))
+    setU32(encodeFixedPoint(fields.matrix[7], 16))
+    setU32(encodeFixedPoint(fields.matrix[8], 2, 30))
     setU32(encodeFixedPoint(fields.width, 16))
     setU32(encodeFixedPoint(fields.height, 16))
 
-    super('tkhd', version, 0, data)
+    super('tkhd', version, flags, data)
   }
 }
 
