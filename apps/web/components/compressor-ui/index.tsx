@@ -32,7 +32,14 @@ import {
 import { downloadBlob } from '@/utils/common/download'
 import { preventDefault } from '@/utils/common/prevent-default'
 import { formatExt, getExtOf, formatFileSize } from '@/utils/common/file-info'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select'
 
 type ImgVideoIntersectProps = Omit<React.ComponentProps<'img'>, 'src'> &
   Omit<React.ComponentProps<'video'>, 'src'>
@@ -117,13 +124,21 @@ const FileOptionsUI = observer(({ item }: FileOptionsUIProps) => {
           <NumberInput
             value={options.width}
             min={1}
-            onValueChange={(v) => item.setWidth(v === undefined ? undefined : Math.floor(Math.max(1, v)))}
+            onValueChange={(v) =>
+              item.setWidth(
+                v === undefined ? undefined : Math.floor(Math.max(1, v)),
+              )
+            }
           />
           <span>×</span>
           <NumberInput
             value={options.height}
             min={1}
-            onValueChange={(v) => item.setHeight(v === undefined ? undefined : Math.floor(Math.max(1, v)))}
+            onValueChange={(v) =>
+              item.setHeight(
+                v === undefined ? undefined : Math.floor(Math.max(1, v)),
+              )
+            }
           />
         </div>
       </Field>
@@ -133,7 +148,11 @@ const FileOptionsUI = observer(({ item }: FileOptionsUIProps) => {
           value={options.frameRate}
           min={Number.MIN_VALUE}
           step='any'
-          onValueChange={(v) => item.setFrameRate(v === undefined ? undefined : Math.max(Number.MIN_VALUE, v))}
+          onValueChange={(v) =>
+            item.setFrameRate(
+              v === undefined ? undefined : Math.max(Number.MIN_VALUE, v),
+            )
+          }
         />
       </Field>
       <Field>
@@ -141,7 +160,9 @@ const FileOptionsUI = observer(({ item }: FileOptionsUIProps) => {
         <Select
           value={options.quality}
           onValueChange={(v) => item.setQuality(v ?? undefined)}
-          itemToStringLabel={(v) => qualityItems.find(({ value }) => value === v)!.label}
+          itemToStringLabel={(v) =>
+            qualityItems.find(({ value }) => value === v)!.label
+          }
         >
           <SelectTrigger>
             <SelectValue />

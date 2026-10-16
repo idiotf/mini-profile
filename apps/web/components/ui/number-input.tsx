@@ -27,7 +27,7 @@ export function NumberInput({
       onValueChange?.(numberValue)
       onChange?.(event)
     },
-    [onValueChange, onChange]
+    [onValueChange, onChange],
   )
 
   const handleFocus = useCallback(
@@ -35,7 +35,7 @@ export function NumberInput({
       setBlurred(false)
       onFocus?.(event)
     },
-    [onFocus]
+    [onFocus],
   )
 
   const handleBlur = useCallback(
@@ -44,7 +44,7 @@ export function NumberInput({
       setControlledValue(value)
       onBlur?.(event)
     },
-    [value, onBlur]
+    [value, onBlur],
   )
 
   return (
