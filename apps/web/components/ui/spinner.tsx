@@ -7,7 +7,8 @@ function Spinner({ className, ...props }: React.ComponentProps<'svg'>) {
       data-slot='spinner'
       role='status'
       aria-label='Loading'
-      className={cn('size-4 animate-spin', className)}
+      // HACK for size-* condition
+      className={cn('w-4 h-4 animate-spin', className)}
       {...props}
     />
   )

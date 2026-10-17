@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useState } from 'react'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, type LucideIcon } from 'lucide-react'
 import { Spinner } from './spinner'
 import { Button } from './button'
 
@@ -78,7 +78,10 @@ export function CopyButton({
   )
 }
 
-export function CopyButtonIcon() {
+export type CopyButtonIconProps =
+  React.ComponentProps<LucideIcon> & React.ComponentProps<typeof Spinner>
+
+export function CopyButtonIcon(props: CopyButtonIconProps) {
   const icon = useContext(CopyButtonIconContext)
 
   const Comp = {
@@ -87,5 +90,5 @@ export function CopyButtonIcon() {
     copy: Copy,
   }[icon]
 
-  return <Comp />
+  return <Comp {...props} />
 }
