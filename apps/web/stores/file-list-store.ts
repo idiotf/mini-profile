@@ -1,4 +1,4 @@
-import { makeAutoObservable, runInAction } from 'mobx'
+import { action, makeAutoObservable, runInAction } from 'mobx'
 import { ListStore } from './list-store'
 import {
   compressAndExportSvg,
@@ -6,6 +6,9 @@ import {
 } from '@mini-profile/core'
 
 const abortError = new Error('FileItem was destroyed')
+
+export type ProgressState =
+  'idle' | 'uploading' | 'processing' | 'finalizing' | 'error' | 'done'
 
 export type { FileItem }
 class FileItem {
@@ -17,7 +20,7 @@ class FileItem {
     quality: 'very-low',
   }
 
-  state: 'idle' | 'uploading' | 'processing' | 'error' | 'done' = 'idle'
+  state: ProgressState = 'idle'
   progress = 0
   processedTime = 0
   output?: Blob
@@ -49,16 +52,20 @@ class FileItem {
     this.options.quality = quality
   }
 
-  private get compressionOptions() {
+  private get compressionOptions(): CompressionOptions {
     return {
       ...this.options,
       signal: this.destroyController.signal,
-      onProgress: (progress: number, processedTime: number) => {
-        runInAction(() => {
-          this.progress = progress
-          this.processedTime = processedTime
-        })
-      },
+      onInitialized: action(() => {
+        this.state = 'processing'
+      }),
+      onProgress: action((progress: number, processedTime: number) => {
+        this.progress = progress
+        this.processedTime = processedTime
+      }),
+      onFinalizing: action(() => {
+        this.state = 'finalizing'
+      }),
     }
   }
 
@@ -73,7 +80,7 @@ class FileItem {
     this.processedTime = 0
 
     try {
-      this.state = 'processing'
+      this.state = 'uploading'
       const output = await this.compress()
       runInAction(() => {
         this.state = 'done'

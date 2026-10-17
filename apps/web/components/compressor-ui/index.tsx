@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { observer } from 'mobx-react-lite'
+import { CompressionException, CompressionError } from '@mini-profile/core'
 import { useBlobUrl } from '@/hooks/use-blob-url'
 import { useFileListStore } from '@/app/providers'
 import type { FileItem } from '@/stores/file-list-store'
@@ -14,7 +15,8 @@ import {
   XIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { CopyButton } from '../ui/copy-button'
+import { Button } from '../ui/button'
+import { CopyButton, CopyButtonIcon } from '../ui/copy-button'
 import { ImageSelectZone } from '../ui/file-button'
 import { PopoverContent, Popover, PopoverTrigger } from '../ui/popover'
 import { Field, FieldGroup, FieldTitle } from '../ui/field'
@@ -28,10 +30,6 @@ import {
   AttachmentMedia,
   AttachmentTitle,
 } from '../ui/attachment'
-
-import { downloadBlob } from '@/utils/common/download'
-import { preventDefault } from '@/utils/common/prevent-default'
-import { formatExt, getExtOf, formatFileSize } from '@/utils/common/file-info'
 import {
   Select,
   SelectContent,
@@ -40,6 +38,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select'
+
+import { downloadBlob } from '@/utils/common/download'
+import { preventDefault } from '@/utils/common/prevent-default'
+import { formatExt, getExtOf, formatFileSize } from '@/utils/common/file-info'
+import { generateErrorCode, type ErrorDetails } from '@/utils/common/error-code'
 
 type ImgVideoIntersectProps = Omit<React.ComponentProps<'img'>, 'src'> &
   Omit<React.ComponentProps<'video'>, 'src'>
@@ -85,18 +88,42 @@ function AttachmentFileMedia({ file }: ImagePreviewProps) {
 
 interface ErrorInfoProps {
   error: unknown
+  details: ErrorDetails
 }
 
-function ErrorInfo({ error }: ErrorInfoProps) {
+function ErrorInfo({ error, details }: ErrorInfoProps) {
+  const isUnexpectedError =
+    typeof error != 'string' && !(error instanceof CompressionException)
+
+  const generateCode = useCallback(() => {
+    return generateErrorCode(error, details)
+  }, [error, details])
+
   return (
-    <span className='flex items-center gap-0.5'>
-      <CopyButton
-        value={error + ''}
-        variant='ghost'
-        size='icon-xs'
-        className='size-[1em]'
-      />
-      오류가 발생했습니다.
+    <span className='flex-1 overflow-hidden'>
+      <div className='flex w-full scrollbar-none items-center overflow-x-auto overflow-y-hidden'>
+        {isUnexpectedError && (
+          <span className='flex items-center gap-0.5'>
+            <CopyButton
+              value={generateCode}
+              variant='link'
+              size='2xs'
+              className='pl-0 text-blue-500'
+            >
+              <CopyButtonIcon />
+              오류 복사
+            </CopyButton>
+          </span>
+        )}
+        <span>
+          {typeof error == 'string'
+            ? error
+            : error instanceof CompressionException ||
+                error instanceof CompressionError
+              ? error.message
+              : '예기치 않은 오류가 발생했습니다.'}
+        </span>
+      </div>
     </span>
   )
 }
@@ -190,14 +217,17 @@ const FileItemUI = observer(({ i }: FileItemUIProps) => {
   const fileListStore = useFileListStore()
   const item = fileListStore.values[i]!
 
-  const startCompression = useCallback(async () => {
-    await item.startCompression()
-
+  const downloadOutput = useCallback(() => {
     const output = item.output
     if (!output) return
 
     downloadBlob(output, item.file.name.replace(/(\.[^.]*)?$/, '.svg'))
   }, [item])
+
+  const startCompression = useCallback(async () => {
+    await item.startCompression()
+    downloadOutput()
+  }, [item, downloadOutput])
 
   const onRemove = useCallback(() => {
     item.destroy()
@@ -207,8 +237,18 @@ const FileItemUI = observer(({ i }: FileItemUIProps) => {
   const ext = formatExt(getExtOf(item.file.name))
   const size = formatFileSize(item.file.size)
 
+  const errorDetails = useMemo(
+    (): ErrorDetails => ({
+      fileFormat: item.file.type,
+    }),
+    [item.file.type],
+  )
+
   return (
-    <Attachment state={item.state} className='w-full'>
+    <Attachment
+      state={item.state === 'finalizing' ? 'processing' : item.state}
+      className='w-full'
+    >
       <AttachmentFileMedia file={item.file} />
       <AttachmentContent>
         <AttachmentTitle>{item.file.name}</AttachmentTitle>
@@ -220,19 +260,25 @@ const FileItemUI = observer(({ i }: FileItemUIProps) => {
               {size}
             </>
           ) : item.state === 'uploading' ? (
-            <>준비 중... ({(item.progress * 100).toFixed(1)}%)</>
+            <>준비 중...</>
           ) : item.state === 'processing' ? (
             <>압축 중... ({(item.progress * 100).toFixed(1)}%)</>
+          ) : item.state === 'finalizing' ? (
+            <>마무리 중...</>
           ) : item.state === 'done' ? (
-            <>압축 완료됨</>
-          ) : (
             <>
-              {typeof item.error === 'string' ? (
-                item.error
-              ) : (
-                <ErrorInfo error={item.error} />
-              )}
+              압축 완료됨
+              <Button
+                variant='link'
+                size='2xs'
+                onClick={downloadOutput}
+                className='text-blue-500'
+              >
+                다시 다운로드
+              </Button>
             </>
+          ) : (
+            <ErrorInfo error={item.error} details={errorDetails} />
           )}
         </AttachmentDescription>
       </AttachmentContent>

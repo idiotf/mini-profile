@@ -18,6 +18,9 @@ import {
 } from 'mediabunny'
 import { AvifOutputFormat } from '@mini-profile/avif-muxer-mediabunny'
 import { readImageMimeType } from './image-mime'
+import { CompressionException, CompressionError } from './error'
+
+export * from './error'
 
 export interface CompressionOptions {
   width?: number
@@ -26,7 +29,9 @@ export interface CompressionOptions {
   fit?: 'fill' | 'contain' | 'cover'
   quality?: 'very-low' | 'low' | 'medium' | 'high' | 'very-high'
   signal?: AbortSignal
+  onInitialized?: () => void
   onProgress?: (progress: number, processedTime: number) => void
+  onFinalizing?: () => void
 }
 
 async function compressVideoOrImageToAvif(
@@ -36,7 +41,11 @@ async function compressVideoOrImageToAvif(
   using __ = bindSignal(options.signal, true)
 
   const source = new BlobSource(blob)
-  const imgMimeType = await __(readImageMimeType(source))
+  const imgMimeType = await __(
+    readImageMimeType(source).catch((e) => {
+      throw new CompressionError('cannotReadFile', e)
+    }),
+  )
 
   return new Uint8Array(
     await __(
@@ -80,22 +89,34 @@ async function compressVideoOrImageToAvif(
     const conversion = await __(
       Conversion.init(conversionOptions).catch((reason) => {
         if (reason instanceof UnsupportedInputFormatError) {
-          throw '지원되지 않는 파일 형식입니다.'
+          throw new CompressionException('unsupportedFormat')
         }
-        throw reason
+        throw new CompressionError('cannotInitVideoConversion', reason)
       }),
       (conversion) => conversion.cancel(),
     )
 
-    if (!conversion.isValid) {
-      const reasons = new Set(conversion.discardedTracks.map((v) => v.reason))
-      throw reasons
+    if (!conversion.isValid || conversion.utilizedTracks.length === 0) {
+      throw new CompressionError(
+        'invalidVideoConversion',
+        conversion.discardedTracks.map((track) => ({
+          reason: track.reason,
+          type: track.track.type,
+          number: track.track.number,
+          codec: track.trackOptions.codec,
+          quality: (
+            track.trackOptions.quality as { _quality: number } | undefined
+          )?.['_quality'],
+        })),
+      )
     }
 
     conversion.onProgress = options.onProgress
 
     await __(output.start())
+    options.onInitialized?.()
     await __(conversion.execute())
+    options.onFinalizing?.()
     await __(output.finalize())
 
     return output.target.buffer!
@@ -143,10 +164,12 @@ async function compressVideoOrImageToAvif(
       }
     }
 
-    const decoder = await getImageDecoder()
+    const decoder = await getImageDecoder().catch((e) => {
+      throw new CompressionError('cannotInitImageDecoder', e)
+    })
 
     const track = decoder.tracks.selectedTrack
-    if (!track) throw TypeError('Cannot find primary animated image track')
+    if (!track) throw new CompressionException('noImageTracks')
 
     const output = __(
       new Output({
@@ -173,6 +196,7 @@ async function compressVideoOrImageToAvif(
 
     await __(output.start())
     await __(decoder.completed)
+    options.onInitialized?.()
 
     for (let frameIndex = 0; frameIndex < track.frameCount; ++frameIndex) {
       using __sub = __.sub(true)
@@ -193,6 +217,7 @@ async function compressVideoOrImageToAvif(
       options.onProgress?.(progress, sample.timestamp)
     }
 
+    options.onFinalizing?.()
     await __(output.finalize())
 
     return output.target.buffer!

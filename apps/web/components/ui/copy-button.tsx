@@ -1,23 +1,65 @@
-import { useCallback, useState } from 'react'
+import { createContext, useCallback, useContext, useState } from 'react'
 import { Copy, Check } from 'lucide-react'
+import { Spinner } from './spinner'
 import { Button } from './button'
 
-export type CopyButtonProps = React.ComponentProps<typeof Button>
+// #region Copying Utils
 
-type ButtonClickHandler = NonNullable<CopyButtonProps['onClick']>
+let textarea: HTMLTextAreaElement
 
-export function CopyButton({ value, onClick, ...props }: CopyButtonProps) {
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch (e) {
+    console.warn(e)
+
+    textarea ||= document.createElement('textarea')
+    document.body.appendChild(textarea)
+
+    textarea.value = text
+    textarea.select()
+    document.execCommand('copy')
+
+    textarea.remove()
+  }
+}
+
+// #endregion
+
+type IconType = 'copy' | 'spinner' | 'check'
+const CopyButtonIconContext = createContext<IconType>('copy')
+
+export interface CopyButtonProps extends Omit<
+  React.ComponentProps<typeof Button>,
+  'value'
+> {
+  value: string | (() => string | PromiseLike<string>)
+}
+
+export function CopyButton({
+  value,
+  children,
+  onClick,
+  ...props
+}: CopyButtonProps) {
+  const [copying, setCopying] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const copyToClipboard = useCallback(() => {
+  const copyToClipboard = useCallback(async () => {
     if (!value) return
-    navigator.clipboard.writeText(value + '')
+
+    try {
+      setCopying(true)
+      await copyText(typeof value == 'function' ? await value() : value)
+    } finally {
+      setCopying(false)
+    }
 
     setCopied(true)
     setTimeout(setCopied, 2000, false)
   }, [value])
 
-  const clickHandler = useCallback<ButtonClickHandler>(
+  const clickHandler = useCallback<NonNullable<CopyButtonProps['onClick']>>(
     (event) => {
       copyToClipboard()
       onClick?.(event)
@@ -27,7 +69,23 @@ export function CopyButton({ value, onClick, ...props }: CopyButtonProps) {
 
   return (
     <Button {...props} onClick={clickHandler}>
-      {copied ? <Check /> : <Copy />}
+      <CopyButtonIconContext.Provider
+        value={copying ? 'spinner' : copied ? 'check' : 'copy'}
+      >
+        {children}
+      </CopyButtonIconContext.Provider>
     </Button>
   )
+}
+
+export function CopyButtonIcon() {
+  const icon = useContext(CopyButtonIconContext)
+
+  const Comp = {
+    check: Check,
+    spinner: Spinner,
+    copy: Copy,
+  }[icon]
+
+  return <Comp />
 }
