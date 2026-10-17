@@ -43,6 +43,7 @@ async function compressVideoOrImageToAvif(
   const source = new BlobSource(blob)
   const imgMimeType = await __(
     readImageMimeType(source).catch((e) => {
+      if (e instanceof CompressionException) throw e
       throw new CompressionError('cannotReadFile', e)
     }),
   )

@@ -1,4 +1,5 @@
 import type { MaybePromise, Source } from 'mediabunny'
+import { CompressionException } from './error'
 
 const magicBytes: Record<string, number[][][]> = {
   png: [[[0x89], [0x50], [0x4e], [0x47], [0x0d], [0x0a], [0x1a], [0x0a]]],
@@ -84,8 +85,19 @@ interface SourceWithReader extends Source {
   ): MaybePromise<ReadResult | null>
 }
 
+async function readMagicBytesSlice(source: Source) {
+  try {
+    return await (source as SourceWithReader)._read(0, 12, 0, Infinity)
+  } catch (e) {
+    if (e instanceof Error && e.message === 'Assertion failed.') {
+      throw new CompressionException('unsupportedFormat')
+    }
+    throw e
+  }
+}
+
 export async function readImageMimeType(source: Source) {
-  const slice = await (source as SourceWithReader)._read(0, 12, 0, Infinity)
+  const slice = await readMagicBytesSlice(source)
   if (!slice) return null
 
   for (const type in magicBytes) {
