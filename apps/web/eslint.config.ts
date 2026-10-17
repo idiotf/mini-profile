@@ -19,6 +19,11 @@ const eslintConfig = defineConfig([
         tsconfigRootDir: import.meta.dirname,
       },
     },
+    settings: {
+      react: {
+        version: '19',
+      },
+    },
   },
 ])
 

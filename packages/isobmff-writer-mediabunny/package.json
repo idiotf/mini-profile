@@ -29,8 +29,6 @@
     "globals": "^17.6.0",
     "jiti": "^2.7.0",
     "prettier": "^3.8.3",
-    "publint": "^0.3.21",
-    "tsdown": "^0.22.5",
     "typescript-eslint": "^8.59.2"
   },
   "peerDependencies": {
@@ -40,9 +38,6 @@
   "scripts": {
     "lint": "eslint",
     "format": "prettier -w '**/*.ts'",
-    "typecheck": "tsc --noEmit",
-    "build": "tsdown src/index src/boxes --publint",
-    "prepack": "bun scripts/prepack && bun run build",
-    "postpack": "bun scripts/postpack"
+    "typecheck": "tsc --noEmit"
   }
 }
