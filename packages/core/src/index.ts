@@ -58,7 +58,8 @@ async function compressVideoOrImageToAvif(
   async function compressVideo() {
     const output = __(
       new Output({
-        format: new AvifOutputFormat({ useSingleImage: false }),
+        // format: new AvifOutputFormat({ useSingleImage: false }),
+        format: new Mp4OutputFormat(),
         target: new BufferTarget(),
       }),
       (output) => {
