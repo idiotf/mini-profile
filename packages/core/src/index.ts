@@ -14,9 +14,10 @@ import {
   UnsupportedInputFormatError,
   VideoSampleSource,
   VideoSample,
+  Mp4OutputFormat, // To test & compare muxed result with AvifOutputFormat
   type ConversionOptions,
 } from 'mediabunny'
-import { AvifOutputFormat } from '@mini-profile/avif-muxer-mediabunny'
+// import { AvifOutputFormat } from '@mini-profile/avif-muxer-mediabunny'
 import { readImageMimeType } from './image-mime'
 import { CompressionException, CompressionError } from './error'
 
@@ -174,9 +175,10 @@ async function compressVideoOrImageToAvif(
 
     const output = __(
       new Output({
-        format: new AvifOutputFormat({
-          useSingleImage: !track.animated,
-        }),
+        // format: new AvifOutputFormat({
+        //   useSingleImage: !track.animated,
+        // }),
+        format: new Mp4OutputFormat(),
         target: new BufferTarget(),
       }),
       (output) => {
