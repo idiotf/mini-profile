@@ -80,7 +80,7 @@ async function compressVideoOrImageToAvif(
       output,
       video: {
         ...options,
-        codec: 'av1',
+        codec: 'vp9',
         quality: options.quality && new Quality(options.quality),
       },
       audio: {
@@ -189,7 +189,7 @@ async function compressVideoOrImageToAvif(
     )
 
     const source = new VideoSampleSource({
-      codec: 'av1',
+      codec: 'vp9',
       quality: options.quality && new Quality(options.quality),
       transform: options,
     })
